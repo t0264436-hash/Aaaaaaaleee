@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CG Sabores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primaria: '#E53935', fundo: '#F8F5F0' }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #F8F5F0; padding-bottom: 90px; }
+        .botao { padding: 0.85rem; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; text-decoration: none; display: block; text-align: center; }
+        .botao-verm { background: #E53935; color: white; }
+        .botao-verm:hover { background: #C62828; }
+        .botao-cinz { background: #E0E0E0; color: #333; }
+        .input { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; margin: 0.5rem 0; }
+        .tela { display: none; }
+        .tela.ativa { display: block; }
+        .aviso { padding: 0.75rem; border-radius: 8px; margin: 1rem 0; display: none; }
+        .aviso.sucesso { background: #E8F5E9; color: #2E7D32; display: block; }
+        .aviso.erro { background: #FFEBEE; color: #C62828; display: block; }
+        .carrinho-fixo { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #E53935; color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; display: none; gap: 8px; align-items: center; z-index: 60; }
+        .carrinho-fixo.visivel { display: flex; }
+        .painel-carrinho { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 16px 16px 0 0; padding: 16px; transform: translateY(100%); transition: 0.3s; z-index: 70; }
+        .painel-carrinho.aberto { transform: translateY(0); }
+        .grupo-qtd { display: flex; gap: 8px; align-items: center; }
+        .btn-qtd { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<!-- TELA INICIAL DE ACESSO -->
+<div id="telaInicio" class="tela ativa min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+            <div class="text-5xl font-black text-primaria">CG</div>
+            <div class="text-lg tracking-widest text-gray-600">SABORES</div>
+        </div>
+        <button onclick="abrirTela('telaSite')" class="botao botao-verm mb-3">🛍️ Site Principal</button>
+        <button onclick="abrirLogin('admin')" class="botao botao-cinz mb-3">🔐 Painel Administrativo</button>
+        <button onclick="abrirLogin('lojista')" class="botao botao-cinz">🛒 Acessar Minha Loja</button>
+    </div>
+</div>
+
+<!-- TELA LOGIN -->
+<div id="telaLogin" class="tela min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-6 rounded-xl shadow-lg">
+        <h3 class="text-xl font-bold text-center mb-4 text-primaria">Acesso Restrito</h3>
+        <input type="email" id="emailLogin" placeholder="Seu e-mail" class="input">
+        <input type="password" id="senhaLogin" placeholder="Sua senha" class="input">
+        <div id="avisoLogin" class="aviso"></div>
+        <div class="flex gap-2 mt-3">
+            <button onclick="abrirTela('telaInicio')" class="botao botao-cinz flex-1">Voltar</button>
+            <button onclick="fazerLogin()" class="botao botao-verm flex-1">Entrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- SITE PRINCIPAL PARA CLIENTES -->
+<div id="telaSite" class="tela">
+    <header class="bg-white shadow-sm sticky top-0 z-40 p-4">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div onclick="abrirTela('telaInicio')" class="cursor-pointer">
+                <div class="text-2xl font-black text-primaria">CG</div>
+                <div class="text-xs tracking-widest text-gray-600">SABORES</div>
+            </div>
+            <a href="https://wa.me/5521993323330" target="_blank" class="botao botao-verm text-sm py-2 px-3">Cadastrar Loja</a>
+        </div>
+        <div class="max-w-4xl mx-auto flex gap-2 mt-3">
+            <input type="text" id="busca" placeholder="Buscar loja..." class="px-3 py-2 rounded border flex-1">
+            <select id="filtroCidade" class="input w-auto"></select>
+        </div>
+    </header>
+    <div class="max-w-4xl mx-auto p-4">
+        <div id="listaLojas" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"></div>
+    </div>
+
+    <!-- PÁGINA DA LOJA INDIVIDUAL -->
+    <div id="paginaLoja" class="hidden max-w-4xl mx-auto p-4">
+        <button onclick="voltarLista()" class="text-primaria font-semibold mb-4 inline-block">← Voltar</button>
+        <div class="mb-6">
+            <div class="flex items-center gap-4 mb-3">
+                <img id="logoLoja" class="w-16 h-16 rounded-full object-cover border-2 border-primaria">
+                <div>
+                    <h2 id="nomeLojaPagina" class="text-xl font-bold"></h2>
+                    <div id="dadosLoja" class="text-sm text-gray-600 space-y-1 mt-1"></div>
+                </div>
+            </div>
+        </div>
+        <h3 class="text-lg font-semibold mb-3">Cardápio</h3>
+        <div id="listaProdutos" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+    </div>
+
+    <button id="btnCarrinho" class="carrinho-fixo" onclick="abrirCarrinho()">
+        🛒 Pedido <span id="qtd">(0)</span> • R$ <span id="totalBtn">0,00</span>
+    </button>
+    <div id="painelCarrinho" class="painel-carrinho">
+        <div class="flex justify-between items-center mb-3">
+            <h4 class="font-bold text-primaria">Meu Pedido</h4>
+            <button onclick="abrirCarrinho()" class="text-xl font-bold text-gray-500">✕</button>
+        </div>
+        <div id="itensCarrinho" class="max-h-48 overflow-y-auto mb-3"></div>
+        <div class="font-bold mb-2">Total: R$ <span id="totalValor">0,00</span></div>
+        <textarea id="obs" placeholder="Observação" class="input" rows="2"></textarea>
+        <select id="pag" class="input">
+            <option value="Pix">💸 Pix</option>
+            <option value="Cartão">💳 Cartão</option>
+            <option value="Dinheiro">💵 Dinheiro</option>
+        </select>
+        <input type="number" id="troco" placeholder="Troco para quanto?" class="input hidden">
+        <button onclick="enviarPedido()" class="botao botao-verm w-full">Enviar Pedido</button>
+    </div>
+</div>
+
+<!-- PAINEL ADMIN -->
+<div id="telaAdmin" class="tela">
+    <div class="max-w-4xl mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-primaria">Painel Administrativo</h2>
+            <button onclick="sair()" class="botao botao-cinz">Sair</button>
+        </div>
+        <div id="avisoAdmin" class="aviso"></div>
+        
+        <div class="bg-white p-5 rounded-lg mb-6 shadow-sm">
+            <h3 class="font-semibold mb-3">Cadastrar Nova Loja</h3>
+            <form id="formNovaLoja">
+                <input type="text" id="nomeLoja" placeholder="Nome da loja" required class="input">
+                <input type="text" id="wppLoja" placeholder="WhatsApp só números" required class="input">
+                <input type="text" id="cidadeLoja" placeholder="Cidade" required class="input">
+                <input type="text" id="igLoja" placeholder="Instagram (opcional)" class="input">
+                <input type="text" id="ruaLoja" placeholder="Rua (opcional)" class="input">
+                <div class="flex gap-2">
+                    <input type="text" id="numLoja" placeholder="Número" class="input flex-1">
+                    <input type="text" id="bairroLoja" placeholder="Bairro" class="input flex-1">
+                </div>
+                <input type="file" id="fotoLoja" accept="image/*" required class="input">
+                <button class="botao botao-verm w-full mt-2">Salvar Loja</button>
+            </form>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm">
+            <h3 class="font-semibold mb-3">Lojas Cadastradas</h3>
+            <div id="listaAdmin"></div>
+        </div>
+    </div>
+</div>
+
+<!-- PAINEL LOJISTA -->
+<div id="telaLojista" class="tela">
+    <div class="max-w-4xl mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-primaria" id="nomePainelLoja"></h2>
+            <button onclick="sair()" class="botao botao-cinz">Sair</button>
+        </div>
+        <div id="avisoLoja" class="aviso"></div>
+
+        <div class="bg-white p-5 rounded-lg mb-6 shadow-sm">
+            <h3 class="font-semibold mb-3">Seu Link Exclusivo</h3>
+            <div class="flex gap-2">
+                <input type="text" id="linkLoja" readonly class="input flex-1">
+                <button onclick="copiarLink()" class="botao botao-verm">Copiar</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg mb-6 shadow-sm">
+            <h3 class="font-semibold mb-3">Editar Dados da Loja</h3>
+            <form id="formEditarLoja">
+                <input type="text" id="edtNome" placeholder="Nome da loja" required class="input">
+                <input type="text" id="edtWpp" placeholder="WhatsApp só números" required class="input">
+                <input type="text" id="edtIg" placeholder="Instagram" class="input">
+                <input type="file" id="edtFoto" accept="image/*" class="input">
+                <button class="botao botao-verm w-full mt-2">Atualizar</button>
+            </form>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm">
+            <h3 class="font-semibold mb-3">Adicionar Produto</h3>
+            <form id="formProduto">
+                <input type="text" id="nomeProd" placeholder="Nome do produto" required class="input">
+                <input type="number" step="0.01" id="precoProd" placeholder="Preço" required class="input">
+                <input type="file" id="fotoProd" accept="image/*" required class="input">
+                <button class="botao botao-verm w-full mt-2">Salvar Produto</button>
+            </form>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm mt-4">
+            <h3 class="font-semibold mb-3">Seus Produtos</h3>
+            <div id="listaProdutosLoja"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, set, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { S3Client, PutObjectCommand } from "https://cdn.skypack.dev/@aws-sdk/client-s3";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDy4b3myk3X7iqcmSfgsM5rLESQyNSHSLQ",
+        authDomain: "cgsabores-470c1.firebaseapp.com",
+        databaseURL: "https://cgsabores-470c1-default-rtdb.firebaseio.com",
+        projectId: "cgsabores-470c1",
+        storageBucket: "cgsabores-470c1.firebasestorage.app",
+        messagingSenderId: "312103968853",
+        appId: "1:312103968853:web:83b323466abe2bca1fb4dc"
+    };
+
+    const R2 = new S3Client({
+        region: 'auto',
+        endpoint: 'https://631d0b76a78e9ccbb8e4062670d2ffcc.r2.cloudflarestorage.com',
+        credentials: {
+            accessKeyId: 'af0b4c1a60c16227988be76ee7ec8e71',
+            secretAccessKey: '0aebb962d98e1cf3fb5c6b7fdd4be57d6ca548cb9ca6ad7a8b0bf76d32fa9f2d'
+        }
+    });
+    const BUCKET = "cgsabores";
+    const EMAIL_ADM = "g84039101@gmail.com";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    let lojas = [], usuario = null, tipoLogin = null, lojaAtual = null, carrinho = [], lojaSelecionada = null;
+
+    // FUNÇÕES BÁSICAS
+    function abrirTela(id){ document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa')); document.getElementById(id).classList.add('ativa'); }
+    function abrirLogin(tipo){ tipoLogin = tipo; abrirTela('telaLogin'); }
+    function voltarLista(){ lojaSelecionada=null; carrinho=[]; document.getElementById('paginaLoja').classList.add('hidden'); document.getElementById('listaLojas').classList.remove('hidden'); document.getElementById('btnCarrinho').classList.remove('visivel'); }
+    async function subirArquivo(arquivo){
+        const nomeArq = Date.now()+'_'+arquivo.name.replace(/\s/g,'_');
+        await R2.send(new PutObjectCommand({Bucket:BUCKET, Key:nomeArq, Body:arquivo, ContentType:arquivo.type}));
+        return `https://${BUCKET}.631d0b76a78e9ccbb8e4062670d2ffcc.r2.cloudflarestorage.com/${nomeArq}`;
+    }
+    function copiarLink(){ 
+        navigator.clipboard.writeText(document.getElementById('linkLoja').value); 
+        alert('✅ Link copiado com sucesso!'); 
+    }
+    function copiarTexto(texto){ 
+        navigator.clipboard.writeText(texto); 
+        alert('✅ Link copiado: ' + texto); 
+    }
+
+    // LEITURA AUTOMÁTICA DO LINK PRIVADO (SEM ARQUIVOS EXTRAS)
+    function verificarLinkDireto(){
+        const params = new URLSearchParams(window.location.search);
+        const lojaSlug = params.get('loja');
+        if(lojaSlug && lojas.length > 0){
+            const loja = lojas.find(l=>l.slug === lojaSlug);
+            if(loja){
+                abrirTela('telaSite');
+                abrirLoja(loja.id);
+            }
+        }
+    }
+
+    // LOGIN E SEGURANÇA
+    window.fazerLogin = async ()=>{
+        try{
+            await signInWithEmailAndPassword(auth, document.getElementById('emailLogin').value, document.getElementById('senhaLogin').value);
+            usuario = auth.currentUser;
+            if(tipoLogin==='admin'){
+                if(usuario.email !== EMAIL_ADM) throw new Error('Acesso apenas para o administrador');
+                abrirTela('telaAdmin');
+            } else {
+                abrirPainelLojista();
+            }
+        }catch(e){ 
+            document.getElementById('avisoLogin').textContent = 'Erro: ' + e.message; 
+            document.getElementById('avisoLogin').className = 'aviso erro'; 
+        }
+    };
+    window.sair = ()=>{ signOut(auth); usuario=null; abrirTela('telaInicio'); };
+
+    // CARREGAR TODAS AS LOJAS
+    onValue(ref(db,'lojas'), snap=>{
+        lojas = snap.val() ? Object.entries(snap.val()).map(([id,d])=>({id,...d})) : [];
+        atualizarFiltroCidades();
+        atualizarListaLojas();
+        atualizarListaAdmin();
+        verificarLinkDireto();
+    });
+
+    function atualizarFiltroCidades(){
+        const cidades = [...new Set(lojas.map(l=>l.cidade.nome))].sort();
+        document.getElementById('filtroCidade').innerHTML = `<option value="">Todas as cidades</option>` + cidades.map(c=>`<option>${c}</option>`).join('');
+    }
+
+    function atualizarListaLojas(){
+        document.getElementById('listaLojas').innerHTML = lojas
+        .filter(l=>{
+            const b = document.getElementById('busca').value.toLowerCase();
+            const c = document.getElementById('filtroCidade').value;
+            return l.nome.toLowerCase().includes(b) && (c==='' || l.cidade.nome===c);
+        })
+        .map(l=>`
+            <div onclick="abrirLoja('${l.id}')" class="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition">
+                <div class="flex items-center gap-3">
+                    <img src="${l.foto}" class="w-12 h-12 rounded-full object-cover">
+                    <div>
+                        <h3 class="font-bold">${l.nome}</h3>
+                        <p class="text-sm text-gray-600">${l.cidade.nome}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    document.getElementById('busca').oninput = atualizarListaLojas;
+    document.getElementById('filtroCidade').onchange = atualizarListaLojas;
+
+    // ABRIR LOJA PELO CLIENTE
+    window.abrirLoja = function(id){
+        lojaSelecionada = lojas.find(l=>l.id===id);
+        carrinho = [];
+        document.getElementById('listaLojas').classList.add('hidden');
+        document.getElementById('paginaLoja').classList.remove('hidden');
+        document.getElementById('btnCarrinho').classList.add('visivel');
+
+        document.getElementById('logoLoja').src = lojaSelecionada.foto;
+        document.getElementById('nomeLojaPagina').textContent = lojaSelecionada.nome;
+        document.getElementById('dadosLoja').innerHTML = `
+            ${lojaSelecionada.instagram ? `<p>📷 ${lojaSelecionada.instagram}</p>` : ''}
+            ${lojaSelecionada.endereco ? `<p>📍 ${lojaSelecionada.endereco.rua||''}, ${lojaSelecionada.endereco.numero||''} - ${lojaSelecionada.endereco.bairro||''}</p>` : ''}
+        `;
+
+        document.getElementById('listaProdutos').innerHTML = Object.entries(lojaSelecionada.produtos||{}).map(([pid,p])=>`
+            <div class="bg-white p-3 rounded-xl shadow-sm">
+                <img src="${p.foto}" class="w-full h-28 object-cover rounded-lg mb-2">
+                <h4 class="font-medium">${p.nome}</h4>
+                <p class="font-bold text-primaria">R$ ${p.preco.toFixed(2)}</p>
+                <button onclick="adicionarItem('${pid}')" class="botao botao-verm w-full mt-2 text-sm">Adicionar</button>
+            </div>
+        `).join('');
+    };
+
+    // CARRINHO
+    window.abrirCarrinho = ()=>document.getElementById('painelCarrinho').classList.toggle('aberto');
+    window.adicionarItem = function(id){
+        const p = lojaSelecionada.produtos[id];
+        const existe = carrinho.find(i=>i.id===id);
+        existe ? existe.qtd++ : carrinho.push({id, nome:p.nome, preco:p.preco, qtd:1});
+        atualizarCarrinho();
+    };
+    window.aumentar = id=>{const i=carrinho.find(x=>x.id===id);i&&(i.qtd++,atualizarCarrinho())};
+    window.diminuir = id=>{const i=carrinho.find(x=>x.id===id);if(i){i.qtd--;if(i.qtd<=0)carrinho=carrinho.filter(x=>x.id!==id);atualizarCarrinho()}};
+    function atualizarCarrinho(){
+        document.getElementById('itensCarrinho').innerHTML = carrinho.map(i=>`
+            <div class="flex justify-between items-center py-2 border-b">
+                <span>${i.qtd}x ${i.nome} - R$ ${(i.preco*i.qtd).toFixed(2)}</span>
+                <div class="grupo-qtd">
+                    <button onclick="diminuir('${i.id}')" class="botao botao-cinz btn-qtd">-</button>
+                    <button onclick="aumentar('${i.id}')" class="botao botao-verm btn-qtd">+</button>
+                </div>
+            </div>
+        `).join('');
+        const total = carrinho.reduce((s,i)=>s+(i.preco*i.qtd),0);
+        document.getElementById('totalValor').textContent = total.toFixed(2);
+        document.getElementById('totalBtn').textContent = total.toFixed(2);
+        document.getElementById('qtd').textContent = `(${carrinho.reduce((s,i)=>s+i.qtd,0)})`;
+    }
+    document.getElementById('pag').onchange = e=>document.getElementById('troco').classList.toggle('hidden', e.target.value!=='Dinheiro');
+    window.enviarPedido = function(){
+        if(!carrinho.length) return alert('Adicione pelo menos um item!');
+        let msg = `*PEDIDO - ${lojaSelecionada.nome}*\n\n`;
+        carrinho.forEach(i=>msg+=`${i.qtd}x ${i.nome} - R$ ${(i.preco*i.qtd).toFixed(2)}\n`);
+        msg += `\n*Total: R$ ${carrinho.reduce((s,i)=>s+(i.preco*i.qtd),0).toFixed(2)}*`;
+        msg += `\nPagamento: ${document.getElementById('pag').value}`;
+        if(document.getElementById('pag').value==='Dinheiro' && document.getElementById('troco').value) msg += `\nTroco para: R$ ${document.getElementById('troco').value}`;
+        if(document.getElementById('obs').value) msg += `\nObservação: ${document.getElementById('obs').value}`;
+        window.open(`https://wa.me/55${lojaSelecionada.whatsapp}?text=${encodeURIComponent(msg)}`);
+    };
+
+    // FUNÇÕES ADMINISTRATIVAS
+    document.getElementById('formNovaLoja').onsubmit = async e=>{
+        e.preventDefault();
+        const ft = await subirArquivo(document.getElementById('fotoLoja').files[0]);
+        await push(ref(db,'lojas'), {
+            nome: document.getElementById('nomeLoja').value,
+            slug: document.getElementById('nomeLoja').value.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''),
+            whatsapp: document.getElementById('wppLoja').value.replace(/\D/g,''),
+            cidade: {
+                nome: document.getElementById('cidadeLoja').value,
+                slug: document.getElementById('cidadeLoja').value.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+            },
+            instagram: document.getElementById('igLoja').value||null,
+            endereco: {
+                rua: document.getElementById('ruaLoja').value||null,
+                numero: document.getElementById('numLoja').value||null,
+                bairro: document.getElementById('bairroLoja').value||null
+            },
+            foto: ft,
+            produtos: {}
+        });
+        document.getElementById('avisoAdmin').textContent = '✅ Loja cadastrada com sucesso!';
+        document.getElementById('avisoAdmin').className = 'aviso sucesso';
+        e.target.reset();
+    };
+
+    function atualizarListaAdmin(){
+        document.getElementById('listaAdmin').innerHTML = lojas.map(l=>`
+            <div class="p-3 border-b flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="${l.foto}" class="w-10 h-10 rounded-full object-cover">
+                    <span>${l.nome}</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="copiarTexto('${window.location.origin}?loja=${l.slug}')" class="botao botao-cinz text-xs py-1 px-2">Copiar Link</button>
+                    <button onclick="if(confirm('Excluir essa loja?')) remove(ref(db,'lojas/${l.id}'))" class="botao botao-verm text-xs py-1 px-2">Excluir</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // FUNÇÕES DO LOJISTA
+    function abrirPainelLojista(){
+        lojaAtual = lojas.find(l=>l.emailUsuario === usuario.email);
+        if(!lojaAtual) return alert('Nenhuma loja vinculada a esse usuário'), sair();
+        abrirTela('telaLojista');
+        document.getElementById('nomePainelLoja').textContent = lojaAtual.nome;
+        document.getElementById('linkLoja').value = `${window.location.origin}?loja=${lojaAtual.slug}`;
+        
+        document.getElementById('edtNome').value = lojaAtual.nome;
+        document.getElementById('edtWpp').value = lojaAtual.whatsapp;
+        document.getElementById('edtIg').value = lojaAtual.instagram||'';
+        atualizarListaProdutosLoja();
+    }
+
+    document.getElementById('formEditarLoja').onsubmit = async e=>{
+        e.preventDefault();
+        const dados = {
+            ...lojaAtual,
+            nome: document.getElementById('edtNome').value,
+            slug: document.getElementById('edtNome').value.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''),
+            whatsapp: document.getElementById('edtWpp').value.replace(/\D/g,''),
+            instagram: document.getElementById('edtIg').value||null
+        };
+        if(document.getElementById('edtFoto').files[0]) dados.foto = await subirArquivo(document.getElementById('edtFoto').files[0]);
+        await set(ref(db,'lojas/'+lojaAtual.id), dados);
+        document.getElementById('avisoLoja').textContent = '✅ Dados atualizados!';
+        document.getElementById('avisoLoja').className = 'aviso sucesso';
+        lojaAtual = dados;
+        document.getElementById('linkLoja').value = `${window.location.origin}?loja=${lojaAtual.slug}`;
+    };
+
+    document.getElementById('formProduto').onsubmit = async e=>{
+        e.preventDefault();
+        const ft = await subirArquivo(document.getElementById('fotoProd').files[0]);
+        const novoId = Date.now().toString();
+        await set(ref(db,'lojas/'+lojaAtual.id+'/produtos/'+novoId), {
+            nome: document.getElementById('nomeProd').value,
+            preco: parseFloat(document.getElementById('precoProd').value),
+            foto: ft
+        });
+        document.getElementById('avisoLoja').textContent = '✅ Produto adicionado!';
+        document.getElementById('avisoLoja').className = 'aviso sucesso';
+        e.target.reset();
+    };
+
+    function atualizarListaProdutosLoja(){
+        const prods = lojaAtual.produtos ? Object.entries(lojaAtual.produtos) : [];
+        document.getElementById('listaProdutosLoja').innerHTML = prods.map(([pid,p])=>`
+            <div class="flex justify-between items-center p-3 border-b">
+                <div><strong>${p.nome}</strong> - R$ ${p.preco.toFixed(2)}</div>
+                <button onclick="if(confirm('Excluir produto?')) remove(ref(db,'lojas/${lojaAtual.id}/produtos/${pid}'))" class="botao botao-verm text-xs py-1 px-2">Excluir</button>
+            </div>
+        `).join('') || '<p class="text-gray-500">Nenhum produto cadastrado ainda</p>';
+    }
+</script>
+</body>
+</html>
