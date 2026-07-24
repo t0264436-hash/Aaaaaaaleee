@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CG Sabores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primaria: '#E53935', fundo: '#F8F5F0' } } } }
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #F8F5F0; padding-bottom: 90px; }
+        .botao { padding: 0.85rem; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; text-decoration: none; display: block; text-align: center; width: 100%; }
+        .botao-verm { background: #E53935; color: white; }
+        .botao-verm:hover { background: #C62828; }
+        .botao-verm:disabled { background: #E0A5A3; cursor: not-allowed; }
+        .botao-cinz { background: #E0E0E0; color: #333; }
+        .input { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; margin: 0.5rem 0; }
+        .tela { display: none; }
+        .tela.ativa { display: block; }
+        .aviso { padding: 0.75rem; border-radius: 8px; margin: 1rem 0; display: none; }
+        .aviso.sucesso { background: #E8F5E9; color: #2E7D32; display: block; }
+        .aviso.erro { background: #FFEBEE; color: #C62828; display: block; }
+        .carrinho-fixo { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #E53935; color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; display: none; gap: 8px; align-items: center; z-index: 60; }
+        .carrinho-fixo.visivel { display: flex; }
+        .painel-carrinho { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 16px 16px 0 0; padding: 16px; transform: translateY(100%); transition: 0.3s; z-index: 70; }
+        .painel-carrinho.aberto { transform: translateY(0); }
+        .grupo-qtd { display: flex; gap: 8px; align-items: center; }
+        .btn-qtd { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; border-radius: 6px; cursor: pointer; }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: girar .6s linear infinite; margin-right: 6px; vertical-align: -2px; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+        .estado-vazio { text-align: center; padding: 2rem 1rem; color: #999; }
+        .abas { display: flex; gap: 8px; margin-bottom: 1rem; }
+        .aba { flex: 1; padding: 0.6rem; text-align: center; border-radius: 8px; cursor: pointer; background: #E0E0E0; color: #333; font-weight: 600; font-size: 0.9rem; }
+        .aba.ativa-aba { background: #E53935; color: white; }
+    </style>
+</head>
+<body>
+
+<!-- TELA INICIAL -->
+<div id="telaInicio" class="tela ativa min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+            <div class="text-5xl font-black text-primaria">CG</div>
+            <div class="text-lg tracking-widest text-gray-600">SABORES</div>
+        </div>
+        <button onclick="abrirTela('telaSite')" class="botao botao-verm mb-3">🛍️ Site Principal</button>
+        <button onclick="abrirTela('telaAcesso')" class="botao botao-cinz">🔐 Minha Loja</button>
+    </div>
+</div>
+
+<!-- TELA ACESSO LOJISTA: SÓ LOGIN (conta criada por você no Firebase Console) -->
+<div id="telaAcesso" class="tela min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-6 rounded-xl shadow-lg">
+        <h3 class="text-xl font-bold text-center mb-4 text-primaria">Acesso à Loja</h3>
+        <input type="email" id="emailLogin" placeholder="E-mail" class="input">
+        <input type="password" id="senhaLogin" placeholder="Senha" class="input">
+        <div id="avisoLogin" class="aviso"></div>
+        <button id="btnEntrar" onclick="fazerLogin()" class="botao botao-verm mt-2">Entrar</button>
+        <button onclick="abrirTela('telaInicio')" class="botao botao-cinz mt-3">Voltar</button>
+    </div>
+</div>
+
+<!-- TELA PRIMEIRO ACESSO: LOJISTA COMPLETA O CADASTRO DA PRÓPRIA LOJA -->
+<div id="telaCompletarCadastro" class="tela min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-6 rounded-xl shadow-lg">
+        <h3 class="text-xl font-bold text-center mb-2 text-primaria">Complete sua Loja</h3>
+        <p class="text-xs text-gray-500 text-center mb-4">Primeiro acesso — preencha os dados da sua loja. Isso só aparece uma vez.</p>
+        <input type="text" id="nomeLoja" placeholder="Nome da loja" class="input">
+        <input type="text" id="wppLoja" placeholder="WhatsApp só números (ex: 21999998888)" class="input">
+        <input type="text" id="cidadeLoja" placeholder="Cidade" class="input">
+        <input type="file" id="fotoLoja" accept="image/*" class="input">
+        <div id="avisoCriar" class="aviso"></div>
+        <button id="btnCriar" onclick="criarLoja()" class="botao botao-verm mt-2">Salvar e Continuar</button>
+    </div>
+</div>
+
+<!-- SITE PRINCIPAL (PÚBLICO) -->
+<div id="telaSite" class="tela">
+    <header class="bg-white shadow-sm sticky top-0 z-40 p-4">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div onclick="voltarLista();abrirTela('telaInicio')" class="cursor-pointer">
+                <div class="text-2xl font-black text-primaria">CG</div>
+                <div class="text-xs tracking-widest text-gray-600">SABORES</div>
+            </div>
+        </div>
+        <div class="max-w-4xl mx-auto flex gap-2 mt-3">
+            <input type="text" id="busca" placeholder="Buscar..." class="px-3 py-2 rounded border flex-1" oninput="atualizarListaLojas()">
+            <select id="filtroCidade" class="input w-auto" onchange="atualizarListaLojas()"></select>
+        </div>
+    </header>
+    <div class="max-w-4xl mx-auto p-4">
+        <div id="listaLojas" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"></div>
+        <div id="paginaLoja" class="hidden">
+            <button onclick="voltarLista()" class="text-primaria font-semibold mb-4 inline-block">← Voltar</button>
+            <div class="mb-6">
+                <div class="flex items-center gap-4 mb-3">
+                    <img id="logoLoja" class="w-16 h-16 rounded-full object-cover border-2 border-primaria">
+                    <div>
+                        <h2 id="nomeLojaPagina" class="text-xl font-bold"></h2>
+                        <div id="dadosLoja" class="text-sm text-gray-600"></div>
+                    </div>
+                </div>
+            </div>
+            <h3 class="text-lg font-semibold mb-3">Cardápio</h3>
+            <div id="listaProdutos" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+        </div>
+    </div>
+    <button id="btnCarrinho" class="carrinho-fixo" onclick="document.getElementById('painelCarrinho').classList.toggle('aberto')">
+        🛒 Pedido <span id="qtd">(0)</span> • R$ <span id="totalBtn">0,00</span>
+    </button>
+    <div id="painelCarrinho" class="painel-carrinho">
+        <div class="flex justify-between items-center mb-3">
+            <h4 class="font-bold text-primaria">Meu Pedido</h4>
+            <button onclick="document.getElementById('painelCarrinho').classList.remove('aberto')" class="text-xl font-bold text-gray-500">✕</button>
+        </div>
+        <div id="itensCarrinho" class="max-h-48 overflow-y-auto mb-3"></div>
+        <div class="font-bold mb-2">Total: R$ <span id="totalValor">0,00</span></div>
+        <textarea id="obs" placeholder="Observação" class="input" rows="2"></textarea>
+        <select id="pag" class="input" onchange="document.getElementById('troco').classList.toggle('hidden', this.value!=='Dinheiro')">
+            <option>Pix</option><option>Cartão</option><option>Dinheiro</option>
+        </select>
+        <input type="number" id="troco" placeholder="Troco para quanto?" class="input hidden">
+        <button onclick="enviarPedido()" class="botao botao-verm w-full">Enviar Pedido</button>
+    </div>
+</div>
+
+<!-- PAINEL DO LOJISTA -->
+<div id="telaLojista" class="tela">
+    <div class="max-w-4xl mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-primaria" id="nomePainelLoja"></h2>
+            <button onclick="sair()" class="botao botao-cinz w-auto">Sair</button>
+        </div>
+        <div id="avisoLojista" class="aviso"></div>
+        <div class="bg-white p-5 rounded-lg mb-6 shadow-sm">
+            <h3 class="font-semibold mb-3">Seu Link Público</h3>
+            <div class="flex gap-2">
+                <input type="text" id="linkLoja" readonly class="input flex-1">
+                <button onclick="navigator.clipboard.writeText(document.getElementById('linkLoja').value);alert('Link copiado!')" class="botao botao-verm w-auto">Copiar</button>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-lg mb-6 shadow-sm">
+            <h3 class="font-semibold mb-3">Adicionar Produto</h3>
+            <form id="formProduto" onsubmit="adicionarProduto(event)">
+                <input type="text" id="nomeProd" placeholder="Nome do produto" required class="input">
+                <input type="number" step="0.01" id="precoProd" placeholder="Preço" required class="input">
+                <input type="file" id="fotoProd" accept="image/*" required class="input">
+                <button id="btnSalvarProduto" class="botao botao-verm w-full mt-2">Salvar</button>
+            </form>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow-sm">
+            <h3 class="font-semibold mb-3">Seus Produtos</h3>
+            <div id="listaProdutosLojista"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDy4b3myk3X7iqcmSfgsM5rLESQyNSHSLQ",
+        authDomain: "cgsabores-470c1.firebaseapp.com",
+        databaseURL: "https://cgsabores-470c1-default-rtdb.firebaseio.com",
+        projectId: "cgsabores-470c1",
+        storageBucket: "cgsabores-470c1.firebasestorage.app",
+        messagingSenderId: "312103968853",
+        appId: "1:312103968853:web:83b323466abe2bca1fb4dc"
+    };
+
+    const WORKER_URL = "https://small-feather-bb41cgsabores-upload.linoariane114.workers.dev";
+    const UPLOAD_TOKEN = "cg2026sabores-x7k9-upload-secreto";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    window.lojas = [];
+    window.lojaSelecionada = null;
+    window.lojaGerenciada = null;
+    window.carrinho = [];
+
+    window.abrirTela = function(id){
+        document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
+        document.getElementById(id).classList.add('ativa');
+    };
+
+    async function subirArquivo(arquivo){
+        if (!arquivo.type.startsWith('image/')) throw new Error('Envie apenas imagens.');
+        if (arquivo.size > 5 * 1024 * 1024) throw new Error('Imagem maior que 5MB.');
+        const formData = new FormData();
+        formData.append('file', arquivo);
+        const resp = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'X-Upload-Token': UPLOAD_TOKEN },
+            body: formData
+        });
+        if (!resp.ok) throw new Error('Falha ao enviar imagem (' + resp.status + ')');
+        const data = await resp.json();
+        return data.url;
+    }
+
+    function definirBotaoCarregando(btn, carregando, textoNormal){
+        btn.disabled = carregando;
+        btn.innerHTML = carregando ? '<span class="spinner"></span>Enviando...' : textoNormal;
+    }
+
+    // ---------- COMPLETAR CADASTRO DA LOJA (primeiro acesso, conta já existe) ----------
+    window.criarLoja = async function(){
+        if (!auth.currentUser) { alert('Sessão expirada, faça login novamente.'); abrirTela('telaAcesso'); return; }
+
+        const nome = document.getElementById('nomeLoja').value.trim();
+        const wpp = document.getElementById('wppLoja').value.replace(/\D/g,'');
+        const cidade = document.getElementById('cidadeLoja').value.trim();
+        const arquivoFoto = document.getElementById('fotoLoja').files[0];
+
+        if (!nome || !wpp || !cidade || !arquivoFoto) {
+            document.getElementById('avisoCriar').textContent = 'Preencha todos os campos.';
+            document.getElementById('avisoCriar').className = 'aviso erro';
+            return;
+        }
+
+        // Trava extra: mesmo que o UI não ofereça caminho pra criar 2 lojas,
+        // essa checagem evita duplicidade em caso de duplo clique ou reenvio.
+        if (lojas.some(l => l.donoUid === auth.currentUser.uid)) {
+            document.getElementById('avisoCriar').textContent = 'Esta conta já tem uma loja cadastrada.';
+            document.getElementById('avisoCriar').className = 'aviso erro';
+            return;
+        }
+
+        const btn = document.getElementById('btnCriar');
+        definirBotaoCarregando(btn, true, 'Salvar e Continuar');
+        try{
+            const ft = await subirArquivo(arquivoFoto);
+            const slug = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+            await push(ref(db,'lojas'), {
+                nome, slug,
+                whatsapp: wpp,
+                cidade: {nome: cidade},
+                foto: ft,
+                donoUid: auth.currentUser.uid,
+                produtos: {}
+            });
+            // onValue (dados chegando do banco) detecta a nova loja e abre o painel automaticamente
+        }catch(err){
+            document.getElementById('avisoCriar').textContent = '❌ ' + err.message;
+            document.getElementById('avisoCriar').className = 'aviso erro';
+        }finally{
+            definirBotaoCarregando(btn, false, 'Salvar e Continuar');
+        }
+    };
+
+    // ---------- LOGIN / SESSÃO ----------
+    window.fazerLogin = async function(){
+        const btn = document.getElementById('btnEntrar');
+        definirBotaoCarregando(btn, true, 'Entrar');
+        try{
+            await signInWithEmailAndPassword(auth, document.getElementById('emailLogin').value, document.getElementById('senhaLogin').value);
+        }catch(e){
+            document.getElementById('avisoLogin').textContent = '❌ ' + traduzErroAuth(e.code, e.message);
+            document.getElementById('avisoLogin').className = 'aviso erro';
+        }finally{
+            definirBotaoCarregando(btn, false, 'Entrar');
+        }
+    };
+
+    function traduzErroAuth(codigo, msg){
+        const mapa = {
+            'auth/invalid-credential': 'E-mail ou senha incorretos.',
+            'auth/invalid-email': 'E-mail inválido.',
+            'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco.',
+            'auth/email-already-in-use': 'Este e-mail já tem uma loja cadastrada. Tente entrar.',
+            'auth/weak-password': 'Senha muito curta (mínimo 6 caracteres).'
+        };
+        return mapa[codigo] || (msg || 'Não foi possível concluir.');
+    }
+
+    window.sair = function(){ signOut(auth); lojaGerenciada = null; abrirTela('telaInicio'); };
+
+    let dadosLojasCarregados = false;
+
+    function rotearLojista(){
+        const user = auth.currentUser;
+        if (!user) return;
+        const loja = lojas.find(l => l.donoUid === user.uid);
+        if (loja) {
+            lojaGerenciada = loja;
+            document.getElementById('nomePainelLoja').textContent = loja.nome;
+            document.getElementById('linkLoja').value = window.location.origin + window.location.pathname + '?loja=' + loja.slug;
+            atualizarListaProdutosLojista();
+            abrirTela('telaLojista');
+        } else if (dadosLojasCarregados) {
+            // Conta existe (você criou no Firebase Console) mas ainda não tem loja: primeiro acesso.
+            abrirTela('telaCompletarCadastro');
+        }
+        // Se os dados ainda não carregaram, espera o onValue disparar de novo.
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        if (!user) return;
+        rotearLojista();
+    });
+
+    // ---------- DADOS ----------
+    onValue(ref(db,'lojas'), snap=>{
+        window.lojas = snap.val() ? Object.entries(snap.val()).map(([i,d])=>({id:i,...d})) : [];
+        dadosLojasCarregados = true;
+        atualizarFiltro();
+        atualizarListaLojas();
+        if (auth.currentUser) rotearLojista();
+        if (lojaGerenciada) {
+            lojaGerenciada = lojas.find(l => l.id === lojaGerenciada.id) || lojaGerenciada;
+            atualizarListaProdutosLojista();
+        }
+        if (lojaSelecionada) {
+            const atualizada = lojas.find(l => l.id === lojaSelecionada.id);
+            if (atualizada) { lojaSelecionada = atualizada; renderizarProdutosLoja(); }
+        }
+        tentarAbrirLojaPelaUrl();
+    });
+
+    function atualizarFiltro(){
+        const cids = [...new Set(lojas.map(l=>l.cidade.nome))].sort();
+        document.getElementById('filtroCidade').innerHTML = '<option value="">Todas</option>' + cids.map(c=>`<option>${c}</option>`).join('');
+    }
+
+    window.atualizarListaLojas = function(){
+        const b = document.getElementById('busca').value.toLowerCase();
+        const c = document.getElementById('filtroCidade').value;
+        const filtradas = lojas.filter(l=>l.nome.toLowerCase().includes(b) && (c==='' || l.cidade.nome===c));
+        document.getElementById('listaLojas').innerHTML = filtradas.length ? filtradas.map(l=>`
+            <div onclick="abrirLoja('${l.id}')" class="bg-white p-4 rounded-xl shadow-sm cursor-pointer">
+                <div class="flex items-center gap-3">
+                    <img src="${l.foto}" class="w-12 h-12 rounded-full object-cover">
+                    <div><h3 class="font-bold">${l.nome}</h3><p class="text-sm text-gray-600">${l.cidade.nome}</p></div>
+                </div>
+            </div>
+        `).join('') : '<div class="estado-vazio col-span-2">Nenhuma loja encontrada.</div>';
+    };
+
+    // ---------- ROTEAMENTO POR SLUG ----------
+    let tentouAbrirPelaUrl = false;
+    function tentarAbrirLojaPelaUrl(){
+        if (tentouAbrirPelaUrl) return;
+        const params = new URLSearchParams(window.location.search);
+        const slug = params.get('loja');
+        if (!slug) return;
+        const loja = lojas.find(l => l.slug === slug);
+        if (loja) {
+            tentouAbrirPelaUrl = true;
+            abrirTela('telaSite');
+            abrirLoja(loja.id);
+        }
+    }
+
+    window.abrirLoja = function(id){
+        lojaSelecionada = lojas.find(l=>l.id===id);
+        carrinho = [];
+        document.getElementById('listaLojas').classList.add('hidden');
+        document.getElementById('paginaLoja').classList.remove('hidden');
+        document.getElementById('btnCarrinho').classList.add('visivel');
+        document.getElementById('logoLoja').src = lojaSelecionada.foto;
+        document.getElementById('nomeLojaPagina').textContent = lojaSelecionada.nome;
+        document.getElementById('dadosLoja').textContent = lojaSelecionada.cidade.nome;
+        renderizarProdutosLoja();
+        attCarrinho();
+    };
+
+    function renderizarProdutosLoja(){
+        const produtos = Object.entries(lojaSelecionada.produtos||{});
+        document.getElementById('listaProdutos').innerHTML = produtos.length ? produtos.map(([pId,p])=>`
+            <div class="bg-white p-3 rounded-xl shadow-sm">
+                <img src="${p.foto}" class="w-full h-28 object-cover rounded-lg mb-2">
+                <h4 class="font-medium">${p.nome}</h4>
+                <p class="font-bold text-primaria">R$ ${p.preco.toFixed(2)}</p>
+                <button onclick="addItem('${pId}')" class="botao botao-verm w-full mt-2 text-sm">Adicionar</button>
+            </div>
+        `).join('') : '<div class="estado-vazio col-span-3">Esta loja ainda não cadastrou produtos.</div>';
+    }
+
+    window.voltarLista = function(){
+        lojaSelecionada=null; carrinho=[];
+        document.getElementById('paginaLoja').classList.add('hidden');
+        document.getElementById('listaLojas').classList.remove('hidden');
+        document.getElementById('btnCarrinho').classList.remove('visivel');
+        document.getElementById('painelCarrinho').classList.remove('aberto');
+        history.replaceState({}, '', window.location.pathname);
+    };
+
+    window.addItem = function(id){
+        const p = lojaSelecionada.produtos[id];
+        const i = carrinho.find(x=>x.id===id);
+        i ? i.qtd++ : carrinho.push({id,nome:p.nome,preco:p.preco,qtd:1});
+        attCarrinho();
+    };
+
+    window.aumentar = id=>{const i=carrinho.find(x=>x.id===id);i&&(i.qtd++,attCarrinho())};
+    window.diminuir = id=>{const i=carrinho.find(x=>x.id===id);if(i){i.qtd--;if(i.qtd<=0)carrinho=carrinho.filter(x=>x.id!==id);attCarrinho()}};
+
+    function attCarrinho(){
+        document.getElementById('itensCarrinho').innerHTML = carrinho.length ? carrinho.map(i=>`
+            <div class="flex justify-between items-center py-2 border-b">
+                <span>${i.qtd}x ${i.nome} - R$ ${(i.preco*i.qtd).toFixed(2)}</span>
+                <div class="grupo-qtd">
+                    <button onclick="diminuir('${i.id}')" class="btn-qtd botao-cinz">-</button>
+                    <button onclick="aumentar('${i.id}')" class="btn-qtd botao-verm">+</button>
+                </div>
+            </div>
+        `).join('') : '<div class="estado-vazio">Carrinho vazio.</div>';
+        const total = carrinho.reduce((s,i)=>s+(i.preco*i.qtd),0);
+        document.getElementById('totalValor').textContent = total.toFixed(2);
+        document.getElementById('totalBtn').textContent = total.toFixed(2);
+        document.getElementById('qtd').textContent = `(${carrinho.reduce((s,i)=>s+i.qtd,0)})`;
+    }
+
+    window.enviarPedido = function(){
+        if(!carrinho.length) return alert('Adicione itens ao pedido antes de enviar!');
+        let msg = `*PEDIDO - ${lojaSelecionada.nome}*\n\n`;
+        carrinho.forEach(i=>msg+=`${i.qtd}x ${i.nome} - R$ ${(i.preco*i.qtd).toFixed(2)}\n`);
+        msg += `\nTotal: R$ ${carrinho.reduce((s,i)=>s+(i.preco*i.qtd),0).toFixed(2)}`;
+        msg += `\nPagamento: ${document.getElementById('pag').value}`;
+        if(document.getElementById('pag').value==='Dinheiro' && document.getElementById('troco').value) msg += `\nTroco para: R$ ${document.getElementById('troco').value}`;
+        if(document.getElementById('obs').value) msg += `\nObs: ${document.getElementById('obs').value}`;
+        window.open(`https://wa.me/55${lojaSelecionada.whatsapp}?text=${encodeURIComponent(msg)}`);
+    };
+
+    // ---------- LOJISTA: PRODUTOS ----------
+    window.adicionarProduto = async function(e){
+        e.preventDefault();
+        if (!lojaGerenciada) { alert('Não foi possível identificar sua loja. Saia e entre novamente.'); return; }
+        const btn = document.getElementById('btnSalvarProduto');
+        definirBotaoCarregando(btn, true, 'Salvar');
+        try{
+            const ft = await subirArquivo(document.getElementById('fotoProd').files[0]);
+            await push(ref(db,'lojas/'+lojaGerenciada.id+'/produtos'), {
+                nome: document.getElementById('nomeProd').value.trim(),
+                preco: parseFloat(document.getElementById('precoProd').value),
+                foto: ft
+            });
+            document.getElementById('avisoLojista').textContent = '✅ Produto adicionado!';
+            document.getElementById('avisoLojista').className = 'aviso sucesso';
+            e.target.reset();
+        }catch(err){
+            document.getElementById('avisoLojista').textContent = '❌ ' + err.message;
+            document.getElementById('avisoLojista').className = 'aviso erro';
+        }finally{
+            definirBotaoCarregando(btn, false, 'Salvar');
+        }
+    };
+
+    function atualizarListaProdutosLojista(){
+        if (!lojaGerenciada) return;
+        const produtos = Object.entries(lojaGerenciada.produtos||{});
+        document.getElementById('listaProdutosLojista').innerHTML = produtos.length ? produtos.map(([pId,p])=>`
+            <div class="p-3 border-b flex justify-between items-center">
+                <span>${p.nome} - R$ ${p.preco.toFixed(2)}</span>
+                <button onclick="excluirProduto('${pId}')" class="botao botao-verm text-xs py-1 px-2 w-auto">Excluir</button>
+            </div>
+        `).join('') : '<div class="estado-vazio">Nenhum produto cadastrado ainda.</div>';
+    }
+
+    window.excluirProduto = function(pId){
+        if (!lojaGerenciada) return;
+        if(confirm('Excluir este produto?')) remove(ref(db,'lojas/'+lojaGerenciada.id+'/produtos/'+pId));
+    };
+</script>
+</body>
+</html>
